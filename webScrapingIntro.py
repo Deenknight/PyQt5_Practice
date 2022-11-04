@@ -32,7 +32,7 @@ print(imgURL)
 """ 
 # Find image
 images = soup.findAll('img')
-firstImage = images[1]
+firstImage = images[2]
 imgURL = firstImage.attrs['src']
 urlBase = "https:"
 
@@ -43,5 +43,7 @@ if r.status_code == 200: # status_code == 200 if successful
     with open("imgs\\img.png", 'wb') as f:
         r.raw.decode_content = True
         shutil.copyfileobj(r.raw, f)
-"""
+ """
+
+
 
