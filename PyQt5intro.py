@@ -1,9 +1,13 @@
 import sys
+import time
 from PyQt5 import QtWidgets, QtGui, QtCore #not necessary when you specifically do shit later but fuck you
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QHBoxLayout, QToolButton, \
-    QVBoxLayout, QTextEdit
+    QVBoxLayout, QTextEdit, QLabel, QProgressBar
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import Qt
+
+#Shift+Alt+A to add and remove comments
+
 """ 
 # v0
 # Display Basic Window
@@ -93,7 +97,7 @@ class Screen(QWidget):
         height = 500
 
         # window definition
-        self.setWindowTitle("Text On a Scren B)")
+        self.setWindowTitle("text box with screen class")
         self.resize(width, height)
         self.setWindowIcon(QIcon("imgs\\wey2apaf.bmp"))
         self.move(sizeObject.center()) # set starting window pos to be the center of the screen
@@ -140,7 +144,7 @@ class Screen(QWidget):
         height = 500
 
         # window definition
-        self.setWindowTitle("Text On a Scren B)")
+        self.setWindowTitle("Images and text on screen")
         self.resize(width, height)
         self.setWindowIcon(QIcon("imgs\\wey2apaf.bmp"))
         self.move(int((sizeObject.width()-width)/2), int((sizeObject.height()-height)/2)) # set starting window pos to be the center of the screen
@@ -210,4 +214,174 @@ if __name__ == '__main__':
     window.show() # always run at the end
     sys.exit(app.exec_()) 
 
- """
+"""
+
+
+
+
+""" 
+# v4 multithreading and exit prompts
+
+class Thread(QtCore.QThread):
+    _signal = QtCore.pyqtSignal(int)
+    def __init__(self):
+        super(Thread, self).__init__()
+
+    def __del__(self):
+        self.wait()
+
+    def run(self):
+        for i in range(101):
+            time.sleep(0.05)
+            self._signal.emit(i)
+
+class slowThread(QtCore.QThread):
+    _signal = QtCore.pyqtSignal(int)
+    def __init__(self):
+        super(slowThread, self).__init__()
+
+    def __del__(self):
+        self.wait()
+
+    def run(self):
+        for i in range(101):
+            time.sleep(0.1)
+            self._signal.emit(i)
+
+class revThread(QtCore.QThread):
+    _signal = QtCore.pyqtSignal(int)
+    def __init__(self):
+        super(revThread, self).__init__()
+
+    def __del__(self):
+        self.wait()
+    def run(self):
+        for i in range(100):
+            time.sleep(0.1)
+            self._signal.emit(99-i)
+
+class Communicate(QtCore.QObject):
+    closeApp = QtCore.pyqtSignal()
+
+class Screen(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        width = 500
+        height = 500
+
+        # window definition
+        self.setWindowTitle("Progress Bar and exit")
+        self.resize(width, height)
+        self.setWindowIcon(QIcon("imgs\\wey2apaf.bmp"))
+        self.move(int((sizeObject.width()-width)/2), int((sizeObject.height()-height)/2)) # set starting window pos to be the center of the screen
+        
+        self.label = [QLabel(self) for i in range(4)]
+        layout = QVBoxLayout()
+
+        self.comm = Communicate()
+        self.comm.closeApp.connect(self.closeEvent) # link the closeApp request to the close event
+        
+
+        self.exitBtn = QPushButton("Exit")
+        self.exitBtn.clicked.connect(self.close) # link the button to closing the app
+
+        self.startBtn = QPushButton("Click me")
+        self.startBtn.clicked.connect(self.btnFnc)
+        
+        # create 3 progress bars
+        self.proggBars = [QtWidgets.QProgressBar(self) for i in range(3)]
+        
+        # initialize their value
+        self.proggBars[0].setValue(0)
+        self.proggBars[1].setValue(0)
+        self.proggBars[2].setValue(100)
+        
+        self.doneBars = 0
+
+
+        # add them all to the layout
+        layout.addWidget(self.startBtn)
+        layout.addWidget(self.proggBars[0])
+        layout.addWidget(self.proggBars[1])
+        layout.addWidget(self.proggBars[2])
+        layout.addWidget(self.exitBtn)
+
+
+        self.setLayout(layout)
+        
+    def btnFnc(self):
+        # reset values
+        self.proggBars[0].setValue(0)
+        self.proggBars[1].setValue(0)
+        self.proggBars[2].setValue(100)
+
+        # create dict of threads
+        self.thread = {}
+
+        # initialize them differently
+        self.thread[0] = Thread()
+        self.thread[1] = slowThread()
+        self.thread[2] = revThread()
+
+        # connect each of the threads to their own value updater
+        self.thread[0]._signal.connect(self.growingBar)
+        self.thread[1]._signal.connect(self.slowBar)
+        self.thread[2]._signal.connect(self.shrinkingBar)
+
+        self.thread[0].start()
+        self.thread[1].start()
+        self.thread[2].start()
+
+        # hide the start button
+        self.startBtn.setEnabled(False)
+
+    def growingBar(self, msg):
+        self.proggBars[0].setValue(int(msg))
+        if self.proggBars[0].value() == 100:
+            self.doneBars += 1
+            self.checkDoneBars()
+            
+
+    def slowBar(self, msg):
+        self.proggBars[1].setValue(int(msg))
+        if self.proggBars[1].value() == 100:
+            self.doneBars += 1
+            self.checkDoneBars()
+
+
+    def shrinkingBar(self, msg):
+        self.proggBars[2].setValue(int(msg))
+        if self.proggBars[2].value() == 0:
+            self.doneBars += 1
+            self.checkDoneBars()
+
+    # checks if all the bars are done
+    def checkDoneBars(self):
+        if self.doneBars == len(self.proggBars):
+            # reveal the bar again
+            self.startBtn.setEnabled(True)
+            self.doneBars = 0
+
+
+    # prompt for whenever the close event is called
+    # while the bar is loading, you can still exit the program
+    def closeEvent(self, event):
+        
+        reply = QtWidgets.QMessageBox.question(self, "Quit", "Are you sure you want to exit?", \
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No, QtWidgets.QMessageBox.No)
+        
+        if reply == QtWidgets.QMessageBox.Yes:
+            event.accept()
+        else:
+            event.ignore()
+
+# Call-site
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    sizeObject = QtWidgets.QDesktopWidget().screenGeometry(-1) # -1 denotes current screen
+    window = Screen()
+    window.show() # always run at the end
+    sys.exit(app.exec_()) 
+
+"""
