@@ -23,7 +23,7 @@ urls = soup.findAll('a', href=True)
 
 """
 # Find the first image on the page, and print out its source url
-images = soup.findAll('img')
+images = soup.findAll('img')    
 firstImage = images[0]
 imgURL = firstImage.attrs['src']
 print(imgURL)
